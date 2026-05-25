@@ -27,7 +27,7 @@
   <tr>
     <td align="center"><img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" /></td>
     <td align="center"><img src="https://img.shields.io/badge/Intel_Arc-0071C5?style=for-the-badge&logo=intel&logoColor=white" /></td>
-    <td align="center"></td>
+    <td align="center"><img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" /></td>
   </tr>
 </table>
 
