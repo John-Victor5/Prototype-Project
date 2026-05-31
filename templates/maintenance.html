@@ -83,7 +83,11 @@
   #toast.toast-info { border-color: rgba(0,212,255,0.4); }
   .conn-banner { background: rgba(255,107,53,0.1); border: 1px solid rgba(255,107,53,0.3); border-radius: 6px; padding: 10px 14px; font-family: var(--mono); font-size: 0.72rem; color: var(--accent2); margin-bottom: 16px; display: none; align-items: center; gap: 8px; }
   .conn-banner.visible { display: flex; }
-  @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } .status-grid { grid-template-columns: repeat(2, 1fr); } .pin-grid { grid-template-columns: 1fr; } }
+  .toggle-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .toggle-card { background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 6px; padding: 12px; }
+  .toggle-label { font-family: var(--mono); font-size: 0.65rem; color: var(--accent); letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 10px; text-align: center; }
+  @media (max-width: 900px) { .toggle-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } .status-grid { grid-template-columns: repeat(2, 1fr); } .pin-grid { grid-template-columns: 1fr; } .toggle-grid { grid-template-columns: repeat(2, 1fr); } }
 </style>
 </head>
 <body>
@@ -205,6 +209,78 @@
       </div>
     </div>
 
+    <!-- Enable / Disable Controls -->
+    <div class="panel grid-full">
+      <div class="panel-title">🔌 Enable / Disable Controls</div>
+      <div class="toggle-grid">
+
+        <div class="toggle-card">
+          <div class="toggle-label">SERVO</div>
+          <div class="btn-group">
+            <button class="btn btn-open" onclick="sendCmd('ES', this)">
+              <span class="btn-icon">✓</span>
+              <span class="btn-label">Enable</span>
+              <span class="btn-cmd">CMD: ES</span>
+            </button>
+            <button class="btn btn-close" onclick="sendCmd('DS', this)">
+              <span class="btn-icon">✕</span>
+              <span class="btn-label">Disable</span>
+              <span class="btn-cmd">CMD: DS</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="toggle-card">
+          <div class="toggle-label">MOTOR</div>
+          <div class="btn-group">
+            <button class="btn btn-open" onclick="sendCmd('EM', this)">
+              <span class="btn-icon">✓</span>
+              <span class="btn-label">Enable</span>
+              <span class="btn-cmd">CMD: EM</span>
+            </button>
+            <button class="btn btn-close" onclick="sendCmd('DM', this)">
+              <span class="btn-icon">✕</span>
+              <span class="btn-label">Disable</span>
+              <span class="btn-cmd">CMD: DM</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="toggle-card">
+          <div class="toggle-label">ULTRASONIC</div>
+          <div class="btn-group">
+            <button class="btn btn-open" onclick="sendCmd('EU', this)">
+              <span class="btn-icon">✓</span>
+              <span class="btn-label">Enable</span>
+              <span class="btn-cmd">CMD: EU</span>
+            </button>
+            <button class="btn btn-close" onclick="sendCmd('DU', this)">
+              <span class="btn-icon">✕</span>
+              <span class="btn-label">Disable</span>
+              <span class="btn-cmd">CMD: DU</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="toggle-card">
+          <div class="toggle-label">RFID</div>
+          <div class="btn-group">
+            <button class="btn btn-open" onclick="sendCmd('ERFID', this)">
+              <span class="btn-icon">✓</span>
+              <span class="btn-label">Enable</span>
+              <span class="btn-cmd">CMD: ERFID</span>
+            </button>
+            <button class="btn btn-close" onclick="sendCmd('DRFID', this)">
+              <span class="btn-icon">✕</span>
+              <span class="btn-label">Disable</span>
+              <span class="btn-cmd">CMD: DRFID</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
     <!-- Pin Reference -->
     <div class="panel grid-full">
       <div class="panel-title">📌 Pin Reference</div>
@@ -231,7 +307,7 @@
 <div id="toast"></div>
 
 <script>
-  const COMMANDS = { 'O':'Open Door','C':'Close Door','B':'AI Busy','I':'AI Idle','OS':'Open Servo','CS':'Close Servo','OM':'Open Motor','CM':'Close Motor','CVD':'Check Values' };
+  const COMMANDS = { 'O':'Open Door','C':'Close Door','B':'AI Busy','I':'AI Idle','OS':'Open Servo','CS':'Close Servo','OM':'Open Motor','CM':'Close Motor','CVD':'Check Values','DS':'Disable Servo','ES':'Enable Servo','DM':'Disable Motor','EM':'Enable Motor','DU':'Disable Ultrasonic','EU':'Enable Ultrasonic','DRFID':'Disable RFID','ERFID':'Enable RFID' };
   let toastTimer = null;
 
   function showToast(msg, type='info') {
@@ -259,6 +335,7 @@
   }
 
   async function sendCmd(cmd, btn) {
+    cmd = cmd.toUpperCase();
     if (btn) btn.classList.add('loading');
     addLog(`→ Sending: ${cmd} (${COMMANDS[cmd] || cmd})`, 'info');
     try {

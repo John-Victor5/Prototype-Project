@@ -82,12 +82,16 @@ unsigned long noDetectionStartTime = 0;
 // Servo positions
 const int SERVO1_CLOSED = 180 - 2;
 const int SERVO2_CLOSED = 2;
-const int SERVO1_OPEN   = 180 - 56;
-const int SERVO2_OPEN   = 56;
+const int SERVO1_OPEN   = 180 - 80;
+const int SERVO2_OPEN   = 80;
 
 // ==================== AI BUSY FLAG ====================
 bool aiIsBusy = false;
 bool StartAI = false;
+bool EnableServo = True;
+bool EnableMotor = True;
+bool EnableRFID = True;
+bool EnableUltrasonic = True;
 
 // ==================== MAINTENANCE MODE ====================
 const uint8_t MAINTENANCE_UID[4] = {0xDC, 0x6D, 0x66, 0x06};
@@ -157,8 +161,41 @@ void loop() {
     else if (cmd == "CM") { 
       Serial.println("Manual: Closing Motors...");
       digitalWrite(IMD1, LOW); digitalWrite(IMD2, HIGH); // DC Motor Reverse
-      rotateSteps(880, -1);                              // Stepper Reverse
+      rotateSteps(800, -1);                              // Stepper Reverse
       digitalWrite(IMD1, LOW); digitalWrite(IMD2, LOW);   // DC Motor Stop
+    }
+    else if (cmd == "DS"){
+      Serial.println("Manual: Disable Servos...");
+      EnableServo = false;
+    }
+    else if (cmd == "DM"){
+      Serial.println("Manual: Disable Motors...");
+      EnableMotor = false;
+    }
+    else if (cmd == "DRFID"){
+      Serial.println("Manual: Disable RFID...");
+      EnableRFID = false;
+    }
+    else if (cmd == "DU"){
+      Serial.println("Manual: Disable Ultrasonic...");
+      EnableUltrasonic = false;
+    }
+
+    else if (cmd == "ES") {
+      Serial.println("Manual: Enable Servos...");
+      EnableServo = true;
+    }
+    else if (cmd == "EM") {
+      Serial.println("Manual: Enable Motors...");
+      EnableMotor = true;
+    }
+    else if (cmd == "ERFID") {
+      Serial.println("Manual: Enable RFID...");
+      EnableRFID = true;
+    }
+    else if (cmd == "EU") {
+      Serial.println("Manual: Enable Ultrasonic...");
+      EnableUltrasonic = true;
     }
 
     else if (cmd == "CVD") {
@@ -257,7 +294,7 @@ void closeDoor() {
   if (doorOpen) {
     digitalWrite(IMD1, LOW);
     digitalWrite(IMD2, HIGH);
-    rotateSteps(900, -1);
+    rotateSteps(800, -1);
     digitalWrite(IMD1, LOW); digitalWrite(IMD2, LOW);
     delay(2000);
     slowServoMove(SERVO1_OPEN, SERVO1_CLOSED, SERVO2_OPEN, SERVO2_CLOSED, 30);

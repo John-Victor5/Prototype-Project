@@ -25,8 +25,8 @@ from core.ManagementChatv2 import HybridMemory
 from core.Ollama_ipex_2v import OllamaIPEX
 
 # ---------- Load system prompt ----------
-if os.path.exists("prompt/service_prompt.md"):
-    with open("prompt/service_prompt.md", "r", encoding="utf-8") as f:
+if os.path.exists("prompts/service.md"):
+    with open("prompts/service.md", "r", encoding="utf-8") as f:
         system_prompts = f.read()
 
 # ---------- Sound greetings ----------
@@ -127,7 +127,10 @@ def write_arduino(data: bytes):
 class ArduinoCommand(BaseModel):
     cmd: str
 
-ALLOWED_COMMANDS = {'O', 'C', 'B', 'I', 'OS', 'CS', 'OM', 'CM', 'CVD'}
+ALLOWED_COMMANDS = {
+    'O','C','B','I','OS','CS','OM','CM','CVD',
+    'DS','ES','DM','EM','DU','EU','DRFID','ERFID'
+}
 
 # ---------- Global state & SSE event queue ----------
 active = False
