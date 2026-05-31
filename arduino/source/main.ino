@@ -126,25 +126,58 @@ void setup() {
 
 void loop() {
   if (Serial.available() > 0) {
-    char cmd = Serial.read();
-    if (cmd == 'B') { aiIsBusy = true; }
-    else if (cmd == 'I') { aiIsBusy = false; }
-    else if (cmd == 'O') { openDoor(); }
-    else if (cmd == 'C') { closeDoor(); }
-    else if (cmd == 'CVD') {
+    String cmd = Serial.readStringUntil('\n'); // Read the full command string
+    cmd.trim(); // Remove any invisible spaces or newlines
+
+    // --- AI STATUS COMMANDS ---
+    if (cmd == "B") { aiIsBusy = true; }
+    else if (cmd == "I") { aiIsBusy = false; }
+    else if (cmd == "<START>") { StartAI = true; }
+    else if (cmd == "<END>") { StartAI = false; }
+
+    // --- FULL DOOR COMMANDS ---
+    else if (cmd == "O") { openDoor(); }
+    else if (cmd == "C") { closeDoor(); }
+
+    // --- COMPONENT SPECIFIC COMMANDS ---
+    else if (cmd == "OS") { 
+      Serial.println("Manual: Opening Servos...");
+      slowServoMove(SERVO1_CLOSED, SERVO1_OPEN, SERVO2_CLOSED, SERVO2_OPEN, 15);
+    } 
+    else if (cmd == "CS") { 
+      Serial.println("Manual: Closing Servos...");
+      slowServoMove(SERVO1_OPEN, SERVO1_CLOSED, SERVO2_OPEN, SERVO2_CLOSED, 30);
+    } 
+    else if (cmd == "OM") { 
+      Serial.println("Manual: Opening Motors...");
+      digitalWrite(IMD1, HIGH); digitalWrite(IMD2, LOW); // DC Motor Start
+      rotateSteps(900, 1);                               // Stepper Start
+      digitalWrite(IMD1, LOW); digitalWrite(IMD2, LOW);   // DC Motor Stop
+    } 
+    else if (cmd == "CM") { 
+      Serial.println("Manual: Closing Motors...");
+      digitalWrite(IMD1, LOW); digitalWrite(IMD2, HIGH); // DC Motor Reverse
+      rotateSteps(880, -1);                              // Stepper Reverse
+      digitalWrite(IMD1, LOW); digitalWrite(IMD2, LOW);   // DC Motor Stop
+    }
+
+    else if (cmd == "CVD") {
       Serial.print("<Echo>"); Serial.print(ECHO_PIN); Serial.println("</Echo>");
       Serial.print("<Trig>"); Serial.print(TRIG_PIN); Serial.println("</Trig>");
+      Serial.print("<IMD1>"); Serial.print(IMD1); Serial.println("</IMD1>");
+      Serial.print("<IMD2>"); Serial.print(IMD2); Serial.println("</IMD2>");
+      Serial.print("<IN1>"); Serial.print(IN1); Serial.println("</IN1>");
+      Serial.print("<IN2>"); Serial.print(IN2); Serial.println("</IN2>");
+      Serial.print("<IN3>"); Serial.print(IN3); Serial.println("</IN3>");
+      Serial.print("<IN4>"); Serial.print(IN4); Serial.println("</IN4>");
+      Serial.print("<Driver>"); Serial.print(PIN_Driver); Serial.println("</Driver>");
       Serial.print("<Door_Boolen>"); Serial.print(doorOpen); Serial.println("</Door_Boolen>");
       Serial.print("<Object_Boolen>"); Serial.print(objectPresent); Serial.println("</Object_Boolen>");
       Serial.print("<Maintenance_Boolen>"); Serial.print(maintenanceMode); Serial.println("</Maintenance_Boolen>");
       Serial.print("<Ai_Boolen>"); Serial.print(aiIsBusy); Serial.println("</Ai_Boolen>");
-    } 
-    else if (cmd == '<') {
-      String longCmd = Serial.readStringUntil('>');
-      if (longCmd == "START") StartAI = true;
-      else if (longCmd == "END") StartAI = false;
     }
   }
+
   uint8_t atqa[2] = {0};
   uint8_t uid[4]  = {0};
   if (rc522_request(atqa)) {
@@ -180,6 +213,7 @@ void loop() {
     rc522_halt();
   }
 
+  // 2. Ultrasonic / AI Logic
   if (StartAI && !maintenanceMode) {
     long distance = ultrasonicDistanceCm();
     bool nowPresent = (distance > 0 && distance < DISTANCE_THRESHOLD_CM);
@@ -193,23 +227,15 @@ void loop() {
     }
 
     if (objectPresent && !doorOpen) {
-      if (millis() - detectionStartTime >= 3000) {
-        openDoor();
-      }
-    } 
-    
-    if (!objectPresent && doorOpen && !aiIsBusy) {
-      if (noDetectionStartTime != 0 && (millis() - noDetectionStartTime >= 3000)) {
-        closeDoor();
-      }
+      if (millis() - detectionStartTime >= 3000) openDoor();
+    } else if (!objectPresent && doorOpen && !aiIsBusy) {
+      if (noDetectionStartTime != 0 && (millis() - noDetectionStartTime >= 3000)) closeDoor();
     }
 
-    if (aiIsBusy) {
-      noDetectionStartTime = millis();
-    }
+    if (aiIsBusy) noDetectionStartTime = millis();
   }
   
-  delay(50); 
+  delay(50);
 }
 
 void openDoor() {

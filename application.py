@@ -107,13 +107,22 @@ ser = None
 serial_lock = threading.Lock()
 
 def write_arduino(data: bytes):
-    if not Off_arduino:
+    # If Off_arduino is False, it means we WANT to use the Arduino.
+    # So we should only return (skip) if Off_arduino is True.
+    if Off_arduino: 
         return
+        
     """Thread‑safe write to Arduino."""
     with serial_lock:
         if ser and ser.is_open:
+            # IMPORTANT: Add the newline character \n so Arduino 
+            # readStringUntil('\n') knows the command is finished.
+            if not data.endswith(b'\n'):
+                data += b'\n'
+                
             ser.write(data)
             ser.flush()
+            print(f"Sent to Arduino: {data}") # Debug line
 
 class ArduinoCommand(BaseModel):
     cmd: str
@@ -198,6 +207,7 @@ def push_maintenance_on():
             event_queue.put(f"data: {{\"type\": \"push_maintenance_on\"}}\n\n"),
             main_loop
         )
+        
 # ---------- AI components (initialised later) ----------
 stt = None
 tts = None
@@ -451,7 +461,8 @@ if __name__ == "__main__":
 
         threading.Thread(target=serial_reader, daemon=True).start() 
         write_arduino(b'CVD')
-        if not Offline_Test: write_arduino(b'<START>')
+        if not Offline_Test:
+            write_arduino(b'<START>')
     else:
         set_active(True)
     threading.Thread(target=ai_interaction_loop, daemon=True).start()
