@@ -144,24 +144,24 @@ void loop() {
     else if (cmd == "C") { closeDoor(); }
 
     // --- COMPONENT SPECIFIC COMMANDS ---
-    else if (cmd == "OS") { 
+    else if (cmd == "OS" && EnableServo) { 
       Serial.println("Manual: Opening Servos...");
       slowServoMove(SERVO1_CLOSED, SERVO1_OPEN, SERVO2_CLOSED, SERVO2_OPEN, 15);
     } 
-    else if (cmd == "CS") { 
+    else if (cmd == "CS" && EnableServo) {
       Serial.println("Manual: Closing Servos...");
       slowServoMove(SERVO1_OPEN, SERVO1_CLOSED, SERVO2_OPEN, SERVO2_CLOSED, 30);
     } 
-    else if (cmd == "OM") { 
+    else if (cmd == "OM" && EnableMotor) { 
       Serial.println("Manual: Opening Motors...");
       digitalWrite(IMD1, HIGH); digitalWrite(IMD2, LOW); // DC Motor Start
       rotateSteps(900, 1);                               // Stepper Start
       digitalWrite(IMD1, LOW); digitalWrite(IMD2, LOW);   // DC Motor Stop
     } 
-    else if (cmd == "CM") { 
+    else if (cmd == "CM" && EnableMotor) 
       Serial.println("Manual: Closing Motors...");
       digitalWrite(IMD1, LOW); digitalWrite(IMD2, HIGH); // DC Motor Reverse
-      rotateSteps(800, -1);                              // Stepper Reverse
+      rotateSteps(830, -1);                              // Stepper Reverse
       digitalWrite(IMD1, LOW); digitalWrite(IMD2, LOW);   // DC Motor Stop
     }
     else if (cmd == "DS"){
@@ -215,43 +215,45 @@ void loop() {
     }
   }
 
-  uint8_t atqa[2] = {0};
-  uint8_t uid[4]  = {0};
-  if (rc522_request(atqa)) {
-    if (rc522_anticoll(uid)) {
-      Serial.print("Card UID: ");
-      for (uint8_t i = 0; i < 4; i++) {
-        Serial.print(uid[i], HEX);
-        Serial.print(" ");
-      }
-      Serial.println();
-      if (memcmp(uid, MAINTENANCE_UID, 4) == 0) {
-        if (millis() - lastMaintenanceTap >= MAINTENANCE_COOLDOWN_MS) {
-          lastMaintenanceTap = millis();
-          if (!maintenanceMode) {
-            maintenanceMode = true;
-            Serial.println("<MAINTENANCE-ENTER>");
-            if (!doorOpen) {
-              openDoor();
-            } else {}
-          } else {
-            maintenanceMode = false;
-            Serial.println("<MAINTENANCE-EXIT>");
-            if (doorOpen) {
-              closeDoor();
+  if (EnableRFID) {
+    uint8_t atqa[2] = {0};
+    uint8_t uid[4]  = {0};
+    if (rc522_request(atqa)) {
+      if (rc522_anticoll(uid)) {
+        Serial.print("Card UID: ");
+        for (uint8_t i = 0; i < 4; i++) {
+          Serial.print(uid[i], HEX);
+          Serial.print(" ");
+        }
+        Serial.println();
+        if (memcmp(uid, MAINTENANCE_UID, 4) == 0) {
+          if (millis() - lastMaintenanceTap >= MAINTENANCE_COOLDOWN_MS) {
+            lastMaintenanceTap = millis();
+            if (!maintenanceMode) {
+              maintenanceMode = true;
+              Serial.println("<MAINTENANCE-ENTER>");
+              if (!doorOpen) {
+                openDoor();
+              } else {}
+            } else {
+              maintenanceMode = false;
+              Serial.println("<MAINTENANCE-EXIT>");
+              if (doorOpen) {
+                closeDoor();
+              }
+              detectionStartTime = 0;
+              noDetectionStartTime = 0;
+              objectPresent = false;
             }
-            detectionStartTime = 0;
-            noDetectionStartTime = 0;
-            objectPresent = false;
           }
         }
       }
+      rc522_halt();
     }
-    rc522_halt();
   }
 
   // 2. Ultrasonic / AI Logic
-  if (StartAI && !maintenanceMode) {
+  if (StartAI && !maintenanceMode && EnableUltrasonic) {
     long distance = ultrasonicDistanceCm();
     bool nowPresent = (distance > 0 && distance < DISTANCE_THRESHOLD_CM);
 
@@ -280,10 +282,12 @@ void openDoor() {
     slowServoMove(SERVO1_CLOSED, SERVO1_OPEN, SERVO2_CLOSED, SERVO2_OPEN, 15);
     doorOpen = true;
     delay(1000);
-    digitalWrite(IMD1, HIGH);
-    digitalWrite(IMD2, LOW);
-    rotateSteps(900, 1);
-    digitalWrite(IMD1, LOW); digitalWrite(IMD2, LOW);
+    
+    if (EnableMotor && EnableServo){
+      digitalWrite(IMD1, HIGH); digitalWrite(IMD2, LOW);
+      rotateSteps(900, 1);
+      digitalWrite(IMD1, LOW); digitalWrite(IMD2, LOW);
+    }
     delay(2000);
     Serial.print("<FUNCTION-001>");
     Serial.println(" ");
@@ -292,10 +296,11 @@ void openDoor() {
 
 void closeDoor() {
   if (doorOpen) {
-    digitalWrite(IMD1, LOW);
-    digitalWrite(IMD2, HIGH);
-    rotateSteps(800, -1);
-    digitalWrite(IMD1, LOW); digitalWrite(IMD2, LOW);
+    if (EnableMotor && EnableServo){
+      digitalWrite(IMD1, LOW); digitalWrite(IMD2, HIGH);
+      rotateSteps(830, -1);
+      digitalWrite(IMD1, LOW); digitalWrite(IMD2, LOW);
+    }
     delay(2000);
     slowServoMove(SERVO1_OPEN, SERVO1_CLOSED, SERVO2_OPEN, SERVO2_CLOSED, 30);
     delay(1000);
@@ -309,6 +314,7 @@ void closeDoor() {
 // Move both servos slowly at the same time
 // ----------------------------------------------------------------------
 void slowServoMove(int start1, int end1, int start2, int end2, int speedDelayMs) {
+  if (!EnableServo) return;
   servo1.attach(A0); servo2.attach(A1);
   int maxDiff = max(abs(end1 - start1), abs(end2 - start2));
   if (maxDiff == 0) return;
