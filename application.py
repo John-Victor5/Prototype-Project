@@ -411,7 +411,6 @@ def wait_for_ollama(host="192.168.4.30", port=11434, timeout=60, interval=2):
         
         time.sleep(interval)
 
-
 if __name__ == "__main__":
     Off_arduino = False
     Offline_Test = True
@@ -452,7 +451,7 @@ if __name__ == "__main__":
 
         threading.Thread(target=serial_reader, daemon=True).start() 
         write_arduino(b'CVD')
-        write_arduino(b'<START>')
+        if not Offline_Test: write_arduino(b'<START>')
     else:
         set_active(True)
     threading.Thread(target=ai_interaction_loop, daemon=True).start()

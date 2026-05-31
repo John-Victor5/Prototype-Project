@@ -131,100 +131,85 @@ void loop() {
     else if (cmd == 'I') { aiIsBusy = false; }
     else if (cmd == 'O') { openDoor(); }
     else if (cmd == 'C') { closeDoor(); }
-    else if (cmd == 'OS') {} //Manually Open Serco
-    else if (cmd == 'CS') {} //Manually Close Serco
-    else if (cmd == 'OM') {} //Manually Open Motor
-    else if (cmd == 'CM') {} //Manually Close Motor
-    else if (cmd == 'CVD'){
-      Serial.println("<Echo> ", ECHO_PIN, "</Echo>");
-      Serial.println("<Trig> ", TRIG_PIN, "</Trig>");
-      Serial.println("<IMD1> ", IMD1, "</IMD1>");
-      Serial.println("<IMD2> ", IMD2, "</IMD2>");
-      Serial.println("<IN1> ", IN1, "</IN1>");
-      Serial.println("<IN2> ", IN2, "</IN2>");
-      Serial.println("<IN3> ", IN3, "</IN3>");
-      Serial.println("<IN4> ", IN4, "</IN4>");
-      Serial.println("<Driver> ", PIN_Driver, "</Driver>");
-      Serial.println("<RST> ", PIN_RST, "</RST>");
-      Serial.println("<SDA> ", PIN_SDA, "</SDA>");
-      Serial.println("<Door_Boolen> ", doorOpen, "</Door_Boolen>");
-      Serial.println("<Object_Boolen> ", objectPresent, "</Object_Boolen>");
-      Serial.println("<Maintenance_Boolen> ", maintenanceMode, "</Maintenance_Boolen>");
-      Serial.println("<Ai_Boolen> ", aiIsBusy, "</Ai_Boolen>");
-    } //Check Value Database
-    else if (cmd == '<START>') {
-      StartAI = true; //Wait until the Python request is already begin
+    else if (cmd == 'CVD') {
+      Serial.print("<Echo>"); Serial.print(ECHO_PIN); Serial.println("</Echo>");
+      Serial.print("<Trig>"); Serial.print(TRIG_PIN); Serial.println("</Trig>");
+      Serial.print("<Door_Boolen>"); Serial.print(doorOpen); Serial.println("</Door_Boolen>");
+      Serial.print("<Object_Boolen>"); Serial.print(objectPresent); Serial.println("</Object_Boolen>");
+      Serial.print("<Maintenance_Boolen>"); Serial.print(maintenanceMode); Serial.println("</Maintenance_Boolen>");
+      Serial.print("<Ai_Boolen>"); Serial.print(aiIsBusy); Serial.println("</Ai_Boolen>");
     } 
-    else if (cmd == '<END>') {
-      StartAI = false; //Wait until the Python request is already end
+    else if (cmd == '<') {
+      String longCmd = Serial.readStringUntil('>');
+      if (longCmd == "START") StartAI = true;
+      else if (longCmd == "END") StartAI = false;
     }
   }
-
-  if (!StartAI) {
-    uint8_t atqa[2] = {0};
-    uint8_t uid[4]  = {0};
-    if (rc522_request(atqa)) {
-      if (rc522_anticoll(uid)) {
-        Serial.print("Card UID: ");
-        for (uint8_t i = 0; i < 4; i++) {
-          Serial.print(uid[i], HEX);
-          Serial.print(" ");
-        }
-        Serial.println();
-        if (memcmp(uid, MAINTENANCE_UID, 4) == 0) {
-          if (millis() - lastMaintenanceTap >= MAINTENANCE_COOLDOWN_MS) {
-            lastMaintenanceTap = millis();
-            if (!maintenanceMode) {
-              maintenanceMode = true;
-              Serial.println("<MAINTENANCE-ENTER>");
-              if (!doorOpen) {
-                openDoor();
-              } else {}
-            } else {
-              maintenanceMode = false;
-              Serial.println("<MAINTENANCE-EXIT>");
-              if (doorOpen) {
-                closeDoor();
-              }
-              detectionStartTime = 0;
-              noDetectionStartTime = 0;
-              objectPresent = false;
+  uint8_t atqa[2] = {0};
+  uint8_t uid[4]  = {0};
+  if (rc522_request(atqa)) {
+    if (rc522_anticoll(uid)) {
+      Serial.print("Card UID: ");
+      for (uint8_t i = 0; i < 4; i++) {
+        Serial.print(uid[i], HEX);
+        Serial.print(" ");
+      }
+      Serial.println();
+      if (memcmp(uid, MAINTENANCE_UID, 4) == 0) {
+        if (millis() - lastMaintenanceTap >= MAINTENANCE_COOLDOWN_MS) {
+          lastMaintenanceTap = millis();
+          if (!maintenanceMode) {
+            maintenanceMode = true;
+            Serial.println("<MAINTENANCE-ENTER>");
+            if (!doorOpen) {
+              openDoor();
+            } else {}
+          } else {
+            maintenanceMode = false;
+            Serial.println("<MAINTENANCE-EXIT>");
+            if (doorOpen) {
+              closeDoor();
             }
+            detectionStartTime = 0;
+            noDetectionStartTime = 0;
+            objectPresent = false;
           }
         }
       }
-      rc522_halt();
-      delay(500);
+    }
+    rc522_halt();
+  }
+
+  if (StartAI && !maintenanceMode) {
+    long distance = ultrasonicDistanceCm();
+    bool nowPresent = (distance > 0 && distance < DISTANCE_THRESHOLD_CM);
+
+    if (nowPresent && !objectPresent) {
+      detectionStartTime = millis();
+      objectPresent = true;
+    } else if (!nowPresent && objectPresent) {
+      noDetectionStartTime = millis();
+      objectPresent = false;
     }
 
-    if (!maintenanceMode) {
-      long distance = ultrasonicDistanceCm();
-      bool nowPresent = (distance > 0 && distance < DISTANCE_THRESHOLD_CM);
-
-      if (nowPresent && !objectPresent) {
-        detectionStartTime = millis();
-        noDetectionStartTime = 0;
-      } else if (!nowPresent && objectPresent) {
-        noDetectionStartTime = millis();
-        detectionStartTime = 0;
+    if (objectPresent && !doorOpen) {
+      if (millis() - detectionStartTime >= 3000) {
+        openDoor();
       }
-      objectPresent = nowPresent;
-
-      if (objectPresent) {
-        if (!doorOpen && detectionStartTime != 0 && (millis() - detectionStartTime >= 3000)) {
-          openDoor();
-        }
-      } else {
-        if (doorOpen && !aiIsBusy && noDetectionStartTime != 0 && (millis() - noDetectionStartTime >= 3000)) {
-          closeDoor();
-        }
-        if (aiIsBusy) {
-          noDetectionStartTime = millis();
-        }
+    } 
+    
+    if (!objectPresent && doorOpen && !aiIsBusy) {
+      if (noDetectionStartTime != 0 && (millis() - noDetectionStartTime >= 3000)) {
+        closeDoor();
       }
+    }
+
+    if (aiIsBusy) {
+      noDetectionStartTime = millis();
     }
   }
-  delay(50);
+  
+  delay(50); 
 }
 
 void openDoor() {
