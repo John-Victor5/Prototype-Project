@@ -16,7 +16,7 @@ import sounddevice as sd
 import numpy as np
 from pydantic import BaseModel
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 
 from core.AudioEngine_Orpheus_ipex_2v import OrpheusTTS
 from core.MicEngine_whipserv2 import AudioTranscriber
