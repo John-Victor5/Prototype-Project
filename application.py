@@ -375,6 +375,10 @@ def startup():
 async def root():
     return HTMLResponse(content=HTML_CONTENT)
 
+@app.get("/background.png")
+async def background():
+    return FileResponse("templates/background.png")
+
 @app.get("/events")
 async def sse_events(request: Request):
     async def event_generator():
@@ -464,8 +468,7 @@ if __name__ == "__main__":
 
         threading.Thread(target=serial_reader, daemon=True).start() 
         write_arduino(b'CVD')
-        if not Offline_Test:
-            write_arduino(b'<START>')
+        write_arduino(b'<START>')
     else:
         set_active(True)
     threading.Thread(target=ai_interaction_loop, daemon=True).start()
