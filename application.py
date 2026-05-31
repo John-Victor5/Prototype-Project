@@ -14,7 +14,8 @@ import soundfile as sf
 from datetime import datetime
 import sounddevice as sd
 import numpy as np
-from fastapi import FastAPI, Request
+from pydantic import BaseModel
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse
 
 from core.AudioEngine_Orpheus_ipex_2v import OrpheusTTS
@@ -113,6 +114,11 @@ def write_arduino(data: bytes):
         if ser and ser.is_open:
             ser.write(data)
             ser.flush()
+
+class ArduinoCommand(BaseModel):
+    cmd: str
+
+ALLOWED_COMMANDS = {'O', 'C', 'B', 'I', 'OS', 'CS', 'OM', 'CM', 'CVD'}
 
 # ---------- Global state & SSE event queue ----------
 active = False
@@ -343,13 +349,6 @@ def read_html():
     except FileNotFoundError:
         return "<h1>Error: index.html missing</h1>"
 
-def read_html():
-    try:
-        with open("templates/index.html", "r", encoding="utf-8") as f:
-            return f.read()
-    except FileNotFoundError:
-        return "<h1>Error: index.html missing</h1>"
-
 HTML_CONTENT = read_html()
 
 app = FastAPI()
@@ -378,8 +377,17 @@ async def sse_events(request: Request):
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.get("/Maintenance")
-async def maintenance():
-    return HTMLResponse(content=HTML_CONTENT)
+async def maintenance_page():
+    with open("templates/maintenance.html", "r") as f:
+        return HTMLResponse(content=f.read())
+    
+@app.post("/arduino/command")
+async def arduino_command(payload: ArduinoCommand):
+    cmd = payload.cmd.strip()
+    if cmd not in ALLOWED_COMMANDS:
+        raise HTTPException(status_code=400, detail=f"Unknown command: {cmd}")
+    write_arduino(cmd.encode())
+    return {"status": "ok", "cmd": cmd}
 
 # ---------- Main entry point ----------
 
